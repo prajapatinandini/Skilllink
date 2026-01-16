@@ -1,0 +1,33 @@
+[debug] [2026-01-12T09:02:42.255Z] ----------------------------------------------------------------------
+[debug] [2026-01-12T09:02:42.264Z] Command:       C:\Program Files\nodejs\node.exe C:\Users\nandi\AppData\Roaming\npm\node_modules\firebase-tools\lib\bin\firebase.js emulators:start
+[debug] [2026-01-12T09:02:42.265Z] CLI Version:   15.2.1
+[debug] [2026-01-12T09:02:42.265Z] Platform:      win32
+[debug] [2026-01-12T09:02:42.265Z] Node Version:  v22.12.0
+[debug] [2026-01-12T09:02:42.266Z] Time:          Mon Jan 12 2026 14:32:42 GMT+0530 (India Standard Time)
+[debug] [2026-01-12T09:02:42.266Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-01-12T09:02:46.957Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-01-12T09:02:46.957Z] > authorizing via signed-in user (nandiniprajapati422@gmail.com)
+[info] i  emulators: Starting emulators: auth {"metadata":{"emulator":{"name":"hub"},"message":"Starting emulators: auth"}}
+[debug] [2026-01-12T09:02:46.988Z] [logging] Logging Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-12T09:02:46.989Z] [auth] Authentication Emulator only supports listening on one address (127.0.0.1). Not listening on ::1
+[debug] [2026-01-12T09:02:46.989Z] assigned listening specs for emulators {"user":{"hub":[{"address":"127.0.0.1","family":"IPv4","port":4400},{"address":"::1","family":"IPv6","port":4400}],"ui":[{"address":"127.0.0.1","family":"IPv4","port":4000},{"address":"::1","family":"IPv6","port":4000}],"logging":[{"address":"127.0.0.1","family":"IPv4","port":4500}],"auth":[{"address":"127.0.0.1","family":"IPv4","port":9099}]},"metadata":{"message":"assigned listening specs for emulators"}}
+[debug] [2026-01-12T09:02:47.006Z] Write emulator hub locator at C:\Users\nandi\AppData\Local\Temp\hub-skilllink-66516.json
+[debug] [2026-01-12T09:02:58.954Z] Could not find VSCode notification endpoint: FetchError: request to http://localhost:40001/vscode/notify failed, reason: connect ECONNREFUSED ::1:40001. If you are not running the Firebase Data Connect VSCode extension, this is expected and not an issue.
+[info] 
+┌─────────────────────────────────────────────────────────────┐
+│ ✔  All emulators ready! It is now safe to connect your app. │
+│ i  View Emulator UI at http://127.0.0.1:4000/               │
+└─────────────────────────────────────────────────────────────┘
+
+┌────────────────┬────────────────┬────────────────────────────┐
+│ Emulator       │ Host:Port      │ View in Emulator UI        │
+├────────────────┼────────────────┼────────────────────────────┤
+│ Authentication │ 127.0.0.1:9099 │ http://127.0.0.1:4000/auth │
+└────────────────┴────────────────┴────────────────────────────┘
+  Emulator Hub host: 127.0.0.1 port: 4400
+  Other reserved ports: 4500
+
+Issues? Report them at https://github.com/firebase/firebase-tools/issues and attach the *-debug.log files.
+ 
+[debug] [2026-01-12T09:31:30.992Z] Received signal SIGHUP 1
