@@ -1,30 +1,36 @@
-const CommitKey = require("../models/CommitKey");
-const sendEmail = require("../utils/sendEmail");
 const axios = require("axios");
+const CommitKey = require("../models/CommitKey");
+const Project = require("../models/projectModel");
 require("dotenv").config();
 
-// Generate Commit Key
-
-exports.generateCommitKey = async (req, res) => {
+// Generate Commit Key (Automatic README Update)
+const generateCommitKey = async (req, res) => {
   try {
     const { projectId } = req.body;
     const user = req.user;
 
-    if (!user) {
-      return res.status(401).json({ success: false, error: "Unauthorized: User not found" });
-    }
+    if (!user) return res.status(401).json({ success: false, error: "Unauthorized" });
 
-    
-    await CommitKey.deleteMany({ userId: user.id, projectId, verified: false });
+    // Fetch project
+    const project = await Project.findOne({ _id: projectId, user: user.id });
+    if (!project) return res.status(404).json({ success: false, error: "Project not found" });
 
-    
+    const repoUrl = project.url.endsWith(".git") ? project.url.slice(0, -4) : project.url;
+    const parts = repoUrl.split("/");
+    if (parts.length < 2) return res.status(400).json({ message: "Invalid repo URL" });
+
+    const owner = parts[parts.length - 2];
+    const repo = parts[parts.length - 1];
+
+    // Delete any previous keys
+    await CommitKey.deleteMany({ userId: user.id, projectId });
+
+    // Generate a new key
     const commitKey = Math.random().toString(36).substring(2, 10).toUpperCase();
+    const expiresAt = new Date(Date.now() + (process.env.COMMIT_KEY_EXPIRE_MINUTES || 10) * 60 * 1000);
 
-    
-    const expiresAt = new Date(Date.now() + process.env.COMMIT_KEY_EXPIRE_MINUTES * 60 * 1000);
-
-    
-    await CommitKey.create({
+    // Save key in DB
+    const record = await CommitKey.create({
       userId: user.id,
       projectId,
       commitKey,
@@ -32,24 +38,45 @@ exports.generateCommitKey = async (req, res) => {
       verified: false
     });
 
-   
-    if (user.email) {
-      await sendEmail(
-        user.email,
-        "Your Commit Verification Key",
-        `Your verification commit key is: KEY-${commitKey}`
-      );
+    // Fetch README from GitHub
+    const readmeRes = await axios.get(`https://api.github.com/repos/${owner}/${repo}/readme`, {
+      headers: {
+        Authorization: `token ${process.env.GITHUB_TOKEN}`,
+        "User-Agent": "SkillLink-App"
+      }
+    });
+
+    const sha = readmeRes.data.sha; // Needed to update the file
+    const decodedContent = Buffer.from(readmeRes.data.content, "base64").toString("utf8");
+
+    // Replace old key if exists, else append
+    let newContent;
+    const keyRegex = /KEY-[A-Z0-9]{8}/g;
+    if (decodedContent.match(keyRegex)) {
+      newContent = decodedContent.replace(keyRegex, `KEY-${commitKey}`);
     } else {
-      console.warn(`User ${user.id} has no email. Skipping email send.`);
+      newContent = decodedContent + `\n\nCommit Verification Key: KEY-${commitKey}`;
     }
 
-   
+    // Encode updated content to base64
+    const encodedContent = Buffer.from(newContent, "utf8").toString("base64");
+
+    // Update README via GitHub API
+    await axios.put(`https://api.github.com/repos/${owner}/${repo}/contents/README.md`, {
+      message: "Update commit verification key for SkillLink",
+      content: encodedContent,
+      sha
+    }, {
+      headers: {
+        Authorization: `token ${process.env.GITHUB_TOKEN}`,
+        "User-Agent": "SkillLink-App"
+      }
+    });
+
     res.status(200).json({
       success: true,
-      message: user.email
-        ? "Commit key generated and emailed successfully"
-        : "Commit key generated successfully (email not sent, user has no email)",
-      commitKeyExample: `KEY-${commitKey}`
+      message: "Commit key generated and automatically added to README",
+      commitKey: `KEY-${commitKey}`
     });
 
   } catch (error) {
@@ -58,66 +85,106 @@ exports.generateCommitKey = async (req, res) => {
   }
 };
 
-
 // Verify Commit Key
-
-exports.verifyCommitKey = async (req, res) => {
+const verifyCommitKey = async (req, res) => {
   try {
-    const { projectId, repoUrl } = req.body;
+    const { projectId } = req.body;
     const userId = req.user.id;
 
-    
-    const record = await CommitKey.findOne({ userId, projectId });
-    if (!record) return res.status(404).json({ message: "Key not found" });
+    // Fetch project
+    const project = await Project.findOne({ _id: projectId, user: userId });
+    if (!project) return res.status(404).json({ message: "Project not found" });
+
+    // Fetch latest key
+    const record = await CommitKey.findOne({ projectId, userId }).sort({ createdAt: -1 });
+    if (!record) return res.status(404).json({ message: "Commit key not found" });
+
     if (record.verified) return res.status(400).json({ message: "Already verified" });
     if (record.expiresAt < new Date()) return res.status(400).json({ message: "Key expired" });
 
-    
-    const cleanedUrl = repoUrl.endsWith(".git") ? repoUrl.slice(0, -4) : repoUrl;
-    const parts = cleanedUrl.split("/");
-    if (parts.length < 2) return res.status(400).json({ message: "Invalid repo URL" });
-
+    // Parse repo
+    const repoUrl = project.url.endsWith(".git") ? project.url.slice(0, -4) : project.url;
+    const parts = repoUrl.split("/");
     const owner = parts[parts.length - 2];
     const repo = parts[parts.length - 1];
 
-    
-    const fileResponse = await axios.get(
-      `https://api.github.com/repos/${owner}/${repo}/readme`,
+    // Look for commits that modified README.md after the key was created
+    const commitsRes = await axios.get(
+      `https://api.github.com/repos/${owner}/${repo}/commits?path=README.md`,
       {
         headers: {
           "User-Agent": "SkillLink-App",
           Authorization: `token ${process.env.GITHUB_TOKEN}`
-
         }
       }
     );
 
-    const encodedContent = fileResponse.data.content;
-    const decodedContent = Buffer.from(encodedContent, "base64").toString("utf8");
+    const commits = Array.isArray(commitsRes.data) ? commitsRes.data : [];
+    const keyWithPrefix = `KEY-${record.commitKey}`;
+    const createdAt = new Date(record.createdAt);
 
-    
-    if (decodedContent.includes(record.commitKey)) {
-      record.verified = true;
-      await record.save();
-      return res.status(200).json({ success: true, message: "Verification successful" });
-    }
+    let found = false;
+    for (const c of commits) {
+      try {
+        const commitDate = c.commit && c.commit.author ? new Date(c.commit.author.date) : null;
+        if (!commitDate) continue;
+        if (commitDate <= createdAt) continue; // only consider commits after key creation
 
-    return res.status(400).json({ message: "Commit key not found in README.md" });
+        // Fetch README at this commit SHA
+        const sha = c.sha;
+        const readmeAtCommit = await axios.get(
+          `https://api.github.com/repos/${owner}/${repo}/contents/README.md?ref=${sha}`,
+          {
+            headers: {
+              "User-Agent": "SkillLink-App",
+              Authorization: `token ${process.env.GITHUB_TOKEN}`
+            }
+          }
+        );
 
-  } catch (error) {
-    console.error(error);
-
-    if (error.response) {
-      if (error.response.status === 404) {
-        return res.status(404).json({ message: "README.md not found in repo" });
-      } else if (error.response.status === 403) {
-        return res.status(403).json({ message: "GitHub API rate limit exceeded" });
+        const content = Buffer.from(readmeAtCommit.data.content, "base64").toString("utf8");
+        if (content.includes(keyWithPrefix) || content.includes(record.commitKey)) {
+          found = true;
+          break;
+        }
+      } catch (err) {
+        // ignore and continue checking other commits
+        continue;
       }
     }
 
+    if (!found) {
+      // As a fallback, check current README content too (in case commit is recent and not indexed)
+      const fileResponse = await axios.get(
+        `https://api.github.com/repos/${owner}/${repo}/readme`,
+        {
+          headers: {
+            "User-Agent": "SkillLink-App",
+            Authorization: `token ${process.env.GITHUB_TOKEN}`
+          }
+        }
+      );
+
+      const decodedContent = Buffer.from(fileResponse.data.content, "base64").toString("utf8");
+      if (decodedContent.includes(keyWithPrefix) || decodedContent.includes(record.commitKey)) {
+        found = true;
+      }
+    }
+
+    if (!found) {
+      return res.status(400).json({ message: "No README commit found containing the verification key after key generation" });
+    }
+
+    // Mark verified
+    record.verified = true;
+    await record.save();
+
+    res.status(200).json({ success: true, message: "Verification successful" });
+
+  } catch (error) {
+    console.error(error);
     res.status(500).json({ success: false, error: error.message });
   }
-};
+}
 
-
-
+module.exports = { generateCommitKey, verifyCommitKey };

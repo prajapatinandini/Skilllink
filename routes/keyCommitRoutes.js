@@ -1,10 +1,12 @@
 const express = require("express");
-const { generateCommitKey, verifyCommitKey } = require("../controllers/keyCommitController");
-const authMiddleware = require("../middleware/authMiddleware");
-
 const router = express.Router();
+const { generateCommitKey, verifyCommitKey } = require("../controllers/keyCommitController");
+const auth = require("../middleware/authMiddleware");
 
-router.post("/generate", authMiddleware, generateCommitKey);
-router.post("/verify", authMiddleware, verifyCommitKey);
+// ✅ Generate a commit key
+router.post("/generate", auth, generateCommitKey);
+
+// ✅ Verify commit key in README.md
+router.post("/verify", auth, verifyCommitKey);
 
 module.exports = router;
