@@ -11,22 +11,30 @@ const generateToken = (id) => {
 //Registration
 exports.register = async (req, res) => {
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, role } = req.body;
 
     const exists = await User.findOne({ email });
-    if (exists) return res.status(400).json({ message: "User already exists" });
+    if (exists)
+      return res.status(400).json({ message: "User already exists" });
 
-    const user = await User.create({ name, email, password });
+    const user = await User.create({
+      name,
+      email,
+      password,
+      role: role || "student"
+    });
 
     res.json({
       message: "Registration successful",
       token: generateToken(user._id),
       userId: user._id,
+      role: user.role
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 //Login
 exports.login = async (req, res) => {
@@ -34,20 +42,25 @@ exports.login = async (req, res) => {
     const { email, password } = req.body;
 
     const user = await User.findOne({ email });
-    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user)
+      return res.status(404).json({ message: "User not found" });
 
     const isMatch = await user.matchPassword(password);
-    if (!isMatch) return res.status(400).json({ message: "Invalid password" });
+    if (!isMatch)
+      return res.status(400).json({ message: "Invalid password" });
 
     res.json({
       message: "Login successful",
       token: generateToken(user._id),
       userId: user._id,
+      role: user.role,
+      profileCompleted: user.profileCompleted
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 //Forgot password
 exports.forgotPassword = async (req, res) => {
@@ -101,20 +114,28 @@ exports.resetPassword = async (req, res) => {
 //Firebase Login
 exports.firebaseLogin = async (req, res) => {
   try {
-    const { firebaseUID, email, name } = req.body;
+    const { firebaseUID, email, name, role } = req.body;
 
     let user = await User.findOne({ firebaseUID });
 
     if (!user) {
-      user = await User.create({ name, email, firebaseUID });
+      user = await User.create({
+        name,
+        email,
+        firebaseUID,
+        role: role || "student"
+      });
     }
 
     res.json({
       message: "Firebase Login Successful",
       token: generateToken(user._id),
       userId: user._id,
+      role: user.role,
+      profileCompleted: user.profileCompleted
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+

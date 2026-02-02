@@ -11,7 +11,6 @@ const userSchema = new mongoose.Schema(
     otp: { type: String },
     otpExpiry: { type: Date },
 
-
     isProfileCompleted: { type: Boolean, default: false },
 
     college: String,
@@ -21,9 +20,22 @@ const userSchema = new mongoose.Schema(
     githubUsername: String,
     resumeUrl: String,
 
-  
-  },
+    role: {
+      type: String,
+      enum: ["student", "company"],
+      default: "student"
+    },
+techStack: {
+  type: String,
+  enum: ["javascript", "python", "java", "cpp"],
+  default: "javascript"
+},
 
+    profileCompleted: {
+      type: Boolean,
+      default: false
+    }
+  },
   { timestamps: true }
 );
 
