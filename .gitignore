@@ -1,10 +1,18 @@
+# Node modules
 node_modules/
+
+# Environment variables
 .env
+
+# Firebase service account key
 config/serviceAccountKey.json
+
+# Logs
 *.log
-.DS_Store
 firebase-debug.log
-config/serviceAccountKey.json
-.env
-node_modules/
+
+# macOS system files
+.DS_Store
+
+# Uploads / user-generated files
 uploads/
