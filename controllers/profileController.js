@@ -1,94 +1,133 @@
 const User = require("../models/userModel");
-const path = require("path");
 
 
+// ================= COMPLETE PROFILE =================
 exports.completeProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    const {
-      college,
-      branch,
-      semester,
-      skills,
-      githubUsername
-    } = req.body;
 
-    
-    if (!college || !branch || !skills || skills.length === 0 || !githubUsername) {
-      return res.status(400).json({
-        message: "College, branch, skills and GitHub username are required"
-      });
+    const { college, branch, semester, skills, githubUsername, techStack } = req.body;
+
+    if (!college || !branch || !skills || !githubUsername) {
+      return res.status(400).json({ message: "All required fields missing" });
     }
 
-    let resumeUrl = req.body.resumeUrl;
-    if (req.file) {
-      resumeUrl = `/uploads/${req.file.filename}`;
+    const skillsArray = Array.isArray(skills)
+      ? skills
+      : skills.split(",").map(s => s.trim()).filter(Boolean);
+
+    const allowedTech = [
+      "html","css","javascript","python","java","cpp",
+      "react","node","express","mongodb","nosql",
+      "mysql","sql","php","ruby","swift","kotlin",
+      "typescript","flutter"
+    ];
+
+    const techStackArray = (Array.isArray(techStack) ? techStack : techStack.split(","))
+      .map(t => t.trim())
+      .filter(t => allowedTech.includes(t));
+
+    if (techStackArray.length === 0) {
+      return res.status(400).json({ message: "Select valid tech stack" });
     }
 
-    const user = await User.findByIdAndUpdate(
+    let resumeUrl;
+    if (req.file) resumeUrl = `/uploads/${req.file.filename}`;
+
+    await User.findByIdAndUpdate(
       userId,
       {
         college,
         branch,
         semester,
-        skills,
+        skills: skillsArray,
         githubUsername,
-        resumeUrl,
-        profileCompleted: true 
+        techStack: techStackArray,
+        ...(resumeUrl && { resumeUrl }),
+        profileCompleted: true,
       },
       { new: true }
-    ).select("-password");
+    );
 
-    res.json({
-      message: "Profile completed successfully",
-      profileCompleted: user.profileCompleted
-    });
+    res.json({ message: "Profile completed successfully" });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-// Get Profile
+
+
+// ================= GET PROFILE =================
 exports.getProfile = async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select("-password");
 
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
 
     res.json(user);
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
 
-// Update Profile
+
+// ================= UPDATE PROFILE =================
 exports.updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const user = await User.findById(userId);
-    if (!user)
-      return res.status(404).json({ message: "User not found" });
+    const allowedFields = [
+      "college",
+      "branch",
+      "semester",
+      "skills",
+      "githubUsername",
+      "techStack",
+    ];
 
-    
-    delete req.body.profileCompleted;
-    delete req.body.isProfileCompleted;
+    const updates = {};
 
-    Object.assign(user, req.body);
+    allowedFields.forEach(field => {
+      if (req.body[field] !== undefined) {
+        updates[field] = req.body[field];
+      }
+    });
 
-    if (req.file) {
-      user.resumeUrl = `/uploads/${req.file.filename}`;
+    // Convert skills to array
+    if (updates.skills && !Array.isArray(updates.skills)) {
+      updates.skills = updates.skills
+        .split(",")
+        .map(s => s.trim())
+        .filter(Boolean);
     }
 
-    await user.save();
+    // Convert techStack to array
+    if (updates.techStack && !Array.isArray(updates.techStack)) {
+      updates.techStack = updates.techStack
+        .split(",")
+        .map(t => t.trim())
+        .filter(Boolean);
+    }
+
+    // Resume upload
+    if (req.file) {
+      updates.resumeUrl = `/uploads/${req.file.filename}`;
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select("-password");
 
     res.json({
       message: "Profile updated successfully",
-      user: await User.findById(userId).select("-password")
+      user
     });
+
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -1,0 +1,25 @@
+// constants/techStacks.js
+module.exports = [
+  "html",
+  "css",
+  "javascript",
+  "react",
+  "angular",
+  "vue",
+  "csharp",
+  "go",
+  "nodejs",
+  "java",
+  "python",
+  "dotnet",
+  "spring",
+  "django",
+  "cplusplus",
+  "flutter",
+  "typescript",
+  "sql",
+  "nosql",
+  "rust",
+  "kotlin",
+  "swift"
+];

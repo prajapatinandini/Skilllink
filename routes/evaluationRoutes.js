@@ -1,13 +1,41 @@
 const express = require("express");
 const router = express.Router();
-const { evaluateProject, getAverageScore } = require("../controllers/evaluationController");
 const auth = require("../middleware/authMiddleware");
+const { evaluateProject, getAverageScore, getProjectEvaluation } = require("../controllers/evaluationController");
+const Project = require("../models/Project");
+const Evaluation = require("../models/Evaluation");
 
-console.log("auth:", auth);
-console.log("evaluateProject:", evaluateProject);
-console.log("getAverageScore:", getAverageScore);
-
+/* Existing routes */
+router.get("/project/:projectId", auth, getProjectEvaluation);
 router.post("/evaluate", auth, evaluateProject);
 router.get("/average-score", auth, getAverageScore);
 
+/* NEW: User projects with evaluations */
+router.get("/user-with-evals", auth, async (req, res) => {
+  try {
+    const projects = await Project.find({ userId: req.user.id }).lean();
+    const evaluations = await Evaluation.find({ userId: req.user.id }).lean();
+
+    const result = projects.map(project => {
+      const evalObj = evaluations.find(
+        e => String(e.projectId) === String(project._id)
+      );
+
+      return {
+        ...project,
+        finalScore: evalObj ? evalObj.finalScore : null,
+        suspicious: evalObj ? evalObj.suspicious : false
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+});
+
+
+
 module.exports = router;
+

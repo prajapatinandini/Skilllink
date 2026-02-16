@@ -1,17 +1,23 @@
 const User = require("../models/userModel");
 const jwt = require("jsonwebtoken");
-const SECRET_KEY = process.env.JWT_SECRET;
 const sendEmail = require("../utils/sendEmail");
 require("dotenv").config();
 
+const SECRET_KEY = process.env.JWT_SECRET;
+
+// Generate JWT Token
 const generateToken = (id) => {
   return jwt.sign({ id }, SECRET_KEY, { expiresIn: "7d" });
 };
 
-//Registration
+// -----------------------
+// Registration
+// -----------------------
 exports.register = async (req, res) => {
   try {
     const { name, email, password, role } = req.body;
+
+    if (!email) return res.status(400).json({ message: "Email is required" });
 
     const exists = await User.findOne({ email });
     if (exists)
@@ -35,11 +41,14 @@ exports.register = async (req, res) => {
   }
 };
 
-
-//Login
+// -----------------------
+// Login
+// -----------------------
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    if (!email) return res.status(400).json({ message: "Email is required" });
 
     const user = await User.findOne({ email });
     if (!user)
@@ -61,11 +70,13 @@ exports.login = async (req, res) => {
   }
 };
 
-
-//Forgot password
+// -----------------------
+// Send OTP for Password Reset
+// -----------------------
 exports.forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email is required" });
 
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "Email not found" });
@@ -73,7 +84,7 @@ exports.forgotPassword = async (req, res) => {
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     user.otp = otp;
-    user.otpExpiry = Date.now() + process.env.OTP_EXPIRE_MINUTES * 60 * 1000; 
+    user.otpExpiry = Date.now() + (process.env.OTP_EXPIRE_MINUTES || 10) * 60 * 1000;
     await user.save();
 
     await sendEmail(email, "Your Password Reset OTP", `Your OTP is: ${otp}`);
@@ -84,15 +95,19 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
-//verify otp
+// -----------------------
+// Verify OTP & Reset Password
+// -----------------------
 exports.resetPassword = async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
 
+    if (!email) return res.status(400).json({ message: "Email is required" });
+
     const user = await User.findOne({ email });
     if (!user) return res.status(404).json({ message: "Email not found" });
 
-    if (user.otp !== otp)
+    if (!user.otp || user.otp !== otp)
       return res.status(400).json({ message: "Invalid OTP" });
 
     if (user.otpExpiry < Date.now())
@@ -101,7 +116,6 @@ exports.resetPassword = async (req, res) => {
     user.password = newPassword;
     user.otp = null;
     user.otpExpiry = null;
-
     await user.save();
 
     res.json({ message: "Password reset successful" });
@@ -110,18 +124,21 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-
-//Firebase Login
+// -----------------------
+// Firebase Login (email optional)
+// -----------------------
 exports.firebaseLogin = async (req, res) => {
   try {
     const { firebaseUID, email, name, role } = req.body;
+
+    if (!firebaseUID) return res.status(400).json({ message: "firebaseUID is required" });
 
     let user = await User.findOne({ firebaseUID });
 
     if (!user) {
       user = await User.create({
         name,
-        email,
+        email: email || null, // email optional
         firebaseUID,
         role: role || "student"
       });
@@ -138,4 +155,3 @@ exports.firebaseLogin = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-

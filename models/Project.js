@@ -8,5 +8,5 @@ const projectSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// FIX: prevent OverwriteModelError
+
 module.exports = mongoose.models.Project || mongoose.model("Project", projectSchema);

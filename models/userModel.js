@@ -8,10 +8,8 @@ const userSchema = new mongoose.Schema(
     password: String,
     firebaseUID: String,
 
-    otp: { type: String },
-    otpExpiry: { type: Date },
-
-    isProfileCompleted: { type: Boolean, default: false },
+    otp: String,
+    otpExpiry: Date,
 
     college: String,
     branch: String,
@@ -25,19 +23,28 @@ const userSchema = new mongoose.Schema(
       enum: ["student", "company"],
       default: "student"
     },
-techStack: {
-  type: String,
-  enum: ["javascript", "python", "java", "cpp"],
-  default: "javascript"
+
+    techStack: {
+  type: [{
+    type: String,
+    enum: [
+      "html","css","javascript","python","java","cpp",
+      "react","node","express","mongodb","nosql",
+      "mysql","sql","php","ruby","swift","kotlin",
+      "typescript","flutter"
+    ]
+  }],
+  default: []
 },
+
 
     profileCompleted: {
       type: Boolean,
       default: false
     }
-  },
-  { timestamps: true }
-);
+
+  }, { timestamps: true });
+
 
 
 userSchema.pre("save", async function (next) {

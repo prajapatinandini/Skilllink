@@ -1,30 +1,20 @@
 const mongoose = require("mongoose");
 
-const codingAttemptSchema = new mongoose.Schema({
-  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+const CodingAttemptSchema = new mongoose.Schema({
+  userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
+  tech: { type: String, required: true },
+  questions: [{ type: mongoose.Schema.Types.ObjectId, ref: "CodingQuestion" }],
+  score: { type: Number, default: 0 },
+  startedAt: { type: Date, default: Date.now },
+  completedAt: Date,
+  violations: [
+    {
+      type: String,
+      timestamp: { type: Date, default: Date.now }
+    }
+  ],
+  totalViolations: { type: Number, default: 0 },
+  recordingUrl: String
+});
 
-  questions: [{
-    questionId: { type: mongoose.Schema.Types.ObjectId, ref: "CodingQuestion" },
-    language: String,
-    code: String,
-    passed: Number,
-    total: Number
-  }],
-
-  score: Number,
-
-  aiReview: [{
-    questionId: { type: mongoose.Schema.Types.ObjectId, ref: "CodingQuestion" },
-    aiGeneratedProbability: Number,
-    behaviorRisk: Number,
-    riskLevel: String
-  }],
-
-  startedAt: Date,
-  submittedAt: Date,
-
-  flagged: { type: Boolean, default: false }
-
-}, { timestamps: true });
-
-module.exports = mongoose.model("CodingAttempt", codingAttemptSchema);
+module.exports = mongoose.model("CodingAttempt", CodingAttemptSchema); // ✅ model

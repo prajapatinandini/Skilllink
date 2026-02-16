@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Select Tech Stack</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+  body {
+    font-family: Inter, Arial;
+    background: #f5f7fb;
+    padding: 30px;
+  }
+
+  h2 {
+    text-align: center;
+  }
+
+  .tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 15px;
+    max-width: 900px;
+    margin: 30px auto;
+  }
+
+  .tech-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    font-weight: 600;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    transition: 0.2s;
+    border: 2px solid transparent;
+  }
+
+  .tech-card:hover {
+    transform: translateY(-4px);
+    background: #4f46e5;
+    color: white;
+  }
+
+  /* 🔥 THIS WAS MISSING */
+  .tech-card.active {
+    background: #4f46e5;
+    color: white;
+    border-color: #312e81;
+    transform: scale(1.03);
+  }
+
+  button {
+    display: block;
+    margin: 30px auto;
+    padding: 12px 25px;
+    font-size: 16px;
+    background: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+</style>
+
+</head>
+<body>
+
+  <h2>🚀 Select Your Tech Stack</h2>
+
+<div class="tech-grid">
+  <div class="tech-card" data-tech="javascript">JavaScript</div>
+  <div class="tech-card" data-tech="react">React</div>
+  <div class="tech-card" data-tech="css">CSS</div>
+  <div class="tech-card" data-tech="html">HTML</div>
+  <div class="tech-card" data-tech="nodejs">Node.js</div>
+  <div class="tech-card" data-tech="python">Python</div>
+  <div class="tech-card" data-tech="java">Java</div>
+  <div class="tech-card" data-tech="angular">Angular</div>
+  <div class="tech-card" data-tech="vue">Vue.js</div>
+</div>
+<button onclick="startCodingRound()">Start Coding Test</button>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+
+  const token = localStorage.getItem("token");
+  if (!token) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  let selectedTech = null;
+
+  const cards = document.querySelectorAll(".tech-card");
+
+  cards.forEach(card => {
+    card.addEventListener("click", () => {
+      cards.forEach(c => c.classList.remove("active"));
+
+      card.classList.add("active");
+      selectedTech = card.dataset.tech;
+
+      console.log("Selected tech:", selectedTech);
+    });
+  });
+
+  window.startCodingRound = async function () {
+    if (!selectedTech) {
+      alert("Select a tech stack first");
+      return;
+    }
+
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/coding/start/${selectedTech}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        alert(data.message || "Unable to start test");
+        return;
+      }
+
+      localStorage.setItem("codingQuestions", JSON.stringify(data.questions));
+      localStorage.setItem("codingTech", selectedTech);
+
+      window.location.href = "coding-test.html";
+
+    } catch (err) {
+      console.error(err);
+      alert("Server error");
+    }
+  };
+
+});
+</script>
+
+
+
+</body>
+</html>

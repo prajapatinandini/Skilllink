@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Complete Profile</title>
+  <link rel="stylesheet" href="css/profile.css" />
+</head>
+<body>
+
+<div class="profile-box">
+  <h2>Complete Your Profile</h2>
+
+  <form id="profileForm" enctype="multipart/form-data">
+
+    <input type="text" id="college" placeholder="College Name" required />
+    <input type="text" id="branch" placeholder="Branch" required />
+    <input type="text" id="semester" placeholder="Semester" required />
+
+    <input type="text" id="skills" placeholder="Skills (comma separated)" required />
+    <input type="text" id="githubUsername" placeholder="GitHub Username" required />
+
+   
+
+<label>Select Your Tech Stack</label>
+
+<label>Select Your Tech Stack</label>
+
+<div class="tech-checkbox-group">
+  <label><input type="checkbox" value="html"> HTML</label>
+  <label><input type="checkbox" value="css"> CSS</label>
+  <label><input type="checkbox" value="javascript"> JavaScript</label>
+  <label><input type="checkbox" value="react"> React</label>
+  <label><input type="checkbox" value="angular"> Angular</label>
+  <label><input type="checkbox" value="vue"> Vue</label>
+  <label><input type="checkbox" value="node"> Node.js</label>
+  <label><input type="checkbox" value="express"> Express</label>
+  <label><input type="checkbox" value="mongodb"> MongoDB</label>
+  <label><input type="checkbox" value="mysql"> MySQL</label>
+  <label><input type="checkbox" value="python"> Python</label>
+  <label><input type="checkbox" value="java"> Java</label>
+  <label><input type="checkbox" value="cpp"> C++</label>
+  <label><input type="checkbox" value="flutter"> Flutter</label>
+  <label><input type="checkbox" value="typescript"> TypeScript</label>
+  <label><input type="checkbox" value="sql"> SQL</label>
+  <label><input type="checkbox" value="nosql"> NoSQL</label>
+  <label><input type="checkbox" value="rust"> Rust</label>
+  <label><input type="checkbox" value="kotlin"> Kotlin</label>
+  <label><input type="checkbox" value="swift"> Swift</label>
+</div>
+
+
+
+    <label>Upload Resume</label>
+    <input type="file" id="resume" />
+
+    <button type="submit">Save Profile</button>
+
+  </form>
+
+  <p id="message"></p>
+</div>
+
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/profile.js"></script>
+</body>
+</html>

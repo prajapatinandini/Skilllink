@@ -1,15 +1,14 @@
-const Project = require("../models/projectModel");
+const Project = require("../models/Project");
 
-//add project
+// Add project
 exports.addProject = async (req, res) => {
   try {
-    const { title, url, techStack } = req.body;
+    const { title, repoUrl } = req.body;
 
     const project = await Project.create({
-      user: req.user.id,
+      userId: req.user.id,
       title,
-      url,
-      techStack
+      repoUrl
     });
 
     res.json({
@@ -21,24 +20,24 @@ exports.addProject = async (req, res) => {
   }
 };
 
-//get project
+// Get user's projects
 exports.getUserProjects = async (req, res) => {
   try {
-    const projects = await Project.find({ user: req.user.id });
+    const projects = await Project.find({ userId: req.user.id });
     res.json(projects);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
-//update project
+// Delete project
 exports.deleteProject = async (req, res) => {
   try {
     const { projectId } = req.params;
 
     const deleted = await Project.findOneAndDelete({
       _id: projectId,
-      user: req.user.id
+      userId: req.user.id
     });
 
     if (!deleted)

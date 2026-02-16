@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Aptitude Test | SkillLink</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+<style>
+body { margin: 0; font-family: 'Inter', sans-serif; background: #f5f7fb; }
+.layout { display: flex; }
+.sidebar { width: 230px; background: #1f2937; height: 100vh; color: white; padding: 25px; }
+.sidebar h2 { margin-bottom: 30px; }
+.sidebar a { display: block; margin-bottom: 15px; color: #cbd5e1; text-decoration: none; cursor: pointer; }
+.sidebar a:hover { color: white; }
+.content { flex: 1; padding: 40px; }
+.top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.timer { font-size: 18px; font-weight: 600; color: #dc2626; }
+.question-box { background: white; padding: 30px; border-radius: 18px; box-shadow: 0 10px 20px rgba(0,0,0,0.08); }
+.option { margin-bottom: 12px; }
+.actions { margin-top: 30px; display: flex; justify-content: space-between; }
+button { padding: 12px 24px; border: none; border-radius: 10px; cursor: pointer; font-size: 15px; }
+.prev { background: #e5e7eb; }
+.next { background: #3b82f6; color: white; }
+.submit { background: #16a34a; color: white; }
+button:disabled { opacity: 0.5; cursor: not-allowed; }
+#proctorWarning { color: red; font-weight: bold; margin-top: 15px; }
+</style>
+</head>
+
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <h2>SkillLink</h2>
+    <a href="dashboard.html">Dashboard</a>
+    <a onclick="logout()">Logout</a>
+  </aside>
+
+  <main class="content">
+    <div class="top-bar">
+      <h2>Aptitude Test</h2>
+      <div class="timer" id="timer">20:00</div>
+    </div>
+
+    <div class="question-box">
+      <div id="counter"></div>
+      <h3 id="questionText"></h3>
+      <div id="options"></div>
+
+      <div class="actions">
+        <button class="prev" id="prevBtn" onclick="prevQuestion()">Previous</button>
+        <button class="next" id="nextBtn" onclick="nextQuestion()">Next</button>
+        <button class="submit" id="submitBtn" onclick="submitTest()" style="display:none">Submit</button>
+      </div>
+
+      <div id="proctorWarning"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ================== AUTH ================== */
+const token = localStorage.getItem("token");
+const attemptId = localStorage.getItem("aptitudeAttemptId");
+const questions = JSON.parse(localStorage.getItem("aptitudeQuestions") || "[]");
+
+if (!token || !attemptId || questions.length === 0) {
+  alert("Test session expired");
+  window.location.href = "dashboard.html";
+}
+
+/* ================== STATE ================== */
+let current = 0;
+let answers = [];
+let timeLeft = 20 * 60;
+let violations = 0;
+const MAX_VIOLATIONS = 3;
+let testSubmitted = false;
+let testLocked = false;
+
+const warningDiv = document.getElementById("proctorWarning");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const submitBtn = document.getElementById("submitBtn");
+
+/* ================== TIMER ================== */
+const timerInterval = setInterval(() => {
+  const min = Math.floor(timeLeft / 60);
+  const sec = timeLeft % 60;
+  document.getElementById("timer").innerText =
+    `${String(min).padStart(2,"0")}:${String(sec).padStart(2,"0")}`;
+  if (timeLeft <= 0) submitTest();
+  timeLeft--;
+}, 1000);
+
+/* ================== RENDER ================== */
+function renderQuestion() {
+  const q = questions[current];
+  document.getElementById("counter").innerText = `Question ${current + 1} of ${questions.length}`;
+  document.getElementById("questionText").innerText = `Q${current + 1}. ${q.question}`;
+
+  const optDiv = document.getElementById("options");
+  optDiv.innerHTML = "";
+
+  q.options.forEach(opt => {
+    const safeOpt = opt.replace(/'/g,"\\'");
+    const checked = answers.find(a => a.questionId === q._id && a.selected === opt) ? "checked" : "";
+    optDiv.innerHTML += `
+      <div class="option">
+        <label>
+          <input type="radio" name="option" ${checked}
+            onchange="saveAnswer('${q._id.replace(/'/g,"\\'")}','${safeOpt}')">
+          ${opt}
+        </label>
+      </div>`;
+  });
+
+  prevBtn.disabled = current === 0;
+  nextBtn.style.display = current === questions.length - 1 ? "none" : "inline-block";
+  submitBtn.style.display = current === questions.length - 1 ? "inline-block" : "none";
+}
+
+/* ================== ANSWERS ================== */
+function saveAnswer(questionId, selected) {
+  const idx = answers.findIndex(a => a.questionId === questionId);
+  if (idx > -1) answers[idx].selected = selected;
+  else answers.push({ questionId, selected });
+}
+
+/* ================== NAV ================== */
+function nextQuestion(){ if(current < questions.length-1){ current++; renderQuestion(); } }
+function prevQuestion(){ if(current > 0){ current--; renderQuestion(); } }
+
+/* ================== SUBMIT ================== */
+async function submitTest() {
+  if (testSubmitted) return;
+  testSubmitted = true;
+  clearInterval(timerInterval);
+
+  try {
+    // ✅ Submit answers
+    const res = await fetch(`http://localhost:5000/api/aptitude/${attemptId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ answers, violations })
+    });
+
+    const data = await res.json();
+    if (!res.ok) { alert(data.message || "Submission failed"); return; }
+
+    // ✅ Unlock coding round
+    await fetch("http://localhost:5000/api/aptitude/complete", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    alert(`Test Submitted Successfully! 🎉\nScore: ${data.score}%`);
+
+    // ✅ Clear test data only
+    localStorage.removeItem("aptitudeAttemptId");
+    localStorage.removeItem("aptitudeQuestions");
+
+    window.location.href = "dashboard.html";
+
+  } catch (err) {
+    console.error(err);
+    alert("Something went wrong");
+  }
+}
+
+/* ================== PROCTORING ================== */
+function addViolation(reason) {
+  if (testLocked || testSubmitted) return;
+  violations++;
+  warningDiv.innerText = `⚠ Violation ${violations}/${MAX_VIOLATIONS}: ${reason}`;
+  if (violations >= MAX_VIOLATIONS) {
+    testLocked = true;
+    alert("❌ Too many violations. Test auto-submitted.");
+    setTimeout(submitTest, 300);
+  }
+}
+
+document.addEventListener("visibilitychange", () => { if (document.hidden) addViolation("Tab switch detected"); });
+window.addEventListener("blur", () => addViolation("Window focus lost"));
+document.addEventListener("contextmenu", e => { e.preventDefault(); addViolation("Right click blocked"); });
+["copy","paste","cut"].forEach(evt => document.addEventListener(evt, e => { e.preventDefault(); addViolation("Copy / Paste blocked"); }));
+
+/* ================== FULLSCREEN ================== */
+function enterFullscreen(){ if(!document.fullscreenElement){ document.documentElement.requestFullscreen().catch(()=>{}); } }
+document.addEventListener("fullscreenchange", () => { if(!document.fullscreenElement){ addViolation("Exited fullscreen"); enterFullscreen(); } });
+window.onload = enterFullscreen;
+
+/* ================== LOGOUT ================== */
+function logout(){ localStorage.clear(); window.location.href = "login.html"; }
+
+/* ================== INITIALIZE ================== */
+renderQuestion();
+</script>
+
+</body>
+</html>

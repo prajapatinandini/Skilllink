@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My Projects</title>
+  <style>
+    body { font-family: Arial; background: #f5f7fb; margin: 0; }
+    .project-container { max-width: 700px; margin: 40px auto; text-align: center; }
+    .project-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .project-header h2 { margin: 0; }
+    .project-header button { padding: 10px 20px; background: #4CAF50; color: white; border: none; border-radius: 6px; cursor: pointer; }
+    .project-header button:hover { background: #45a049; }
+    .average-score { margin-bottom: 20px; font-size: 18px; font-weight: bold; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+
+    th, td { padding: 12px 15px; border-bottom: 1px solid #ddd; }
+    th { background: #f4f4f4; }
+    tr:hover { background: #f1f1f1; }
+
+    .eval-btn {
+      padding: 6px 12px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-right: 6px;
+    }
+
+    .eval-btn:disabled {
+      background: gray;
+      cursor: not-allowed;
+    }
+
+    .del-btn {
+      padding: 6px 12px;
+      background: #f44336;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .del-btn:hover {
+      background: #d32f2f;
+    }
+  </style>
+</head>
+<body>
+
+<div class="project-container">
+  <div class="project-header">
+    <h2>My Projects</h2>
+    <button onclick="location.href='project-submit.html'">➕ Add Project</button>
+  </div>
+
+  <div class="average-score" id="averageScore">Average Score: -</div>
+
+  <table id="projectsTable">
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Project Title</th>
+        <th>Final Score</th>
+        <th>Action</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<script>
+const token = localStorage.getItem("token");
+if (!token) window.location.href = "login.html";
+
+async function loadProjects() {
+  try {
+    const res = await fetch(
+      "http://localhost:5000/api/evaluation/user-with-evals",
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
+    );
+
+    if (!res.ok) throw new Error("Fetch failed");
+
+    const projects = await res.json();
+    const tbody = document.querySelector("#projectsTable tbody");
+    tbody.innerHTML = "";
+
+    let totalScore = 0;
+    let scoredProjects = 0;
+
+    projects.forEach((project, index) => {
+      const hasScore = typeof project.finalScore === "number";
+
+      if (hasScore) {
+        totalScore += project.finalScore;
+        scoredProjects++;
+      }
+
+      const tr = document.createElement("tr");
+
+      tr.innerHTML = `
+        <td>${index + 1}</td>
+        <td>${project.title || "Untitled"}</td>
+        <td style="
+          color: ${hasScore && project.finalScore >= 90 ? "green" : "black"};
+          font-weight: ${hasScore && project.finalScore >= 90 ? "bold" : "normal"};
+        ">
+          ${hasScore ? project.finalScore : "-"}
+        </td>
+        <td>
+          ${
+            hasScore
+              ? "✔ Evaluated"
+              : `<button class="eval-btn"
+                   onclick="evaluateProject('${project._id}', this)">
+                   Evaluate
+                 </button>`
+          }
+          <button class="del-btn"
+            onclick="deleteProject('${project._id}')">
+            Delete
+          </button>
+        </td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+
+    const average =
+      scoredProjects > 0 ? (totalScore / scoredProjects).toFixed(2) : "-";
+
+    document.getElementById("averageScore").innerText =
+      `Average Score: ${average}`;
+
+  } catch (err) {
+    console.error(err);
+    alert("Projects load nahi ho rahe");
+  }
+}
+
+// 🔥 Evaluate project
+async function evaluateProject(projectId, btn) {
+  btn.disabled = true;
+  btn.innerText = "Evaluating...";
+
+  try {
+    const res = await fetch(
+      "http://localhost:5000/api/evaluation/evaluate",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({ projectId })
+      }
+    );
+
+    if (!res.ok) throw new Error("Evaluation failed");
+
+    loadProjects();
+
+  } catch (err) {
+    alert("Evaluation failed");
+    btn.disabled = false;
+    btn.innerText = "Evaluate";
+  }
+}
+
+// 🗑 Delete project
+async function deleteProject(projectId) {
+  if (!confirm("Are you sure you want to delete this project?")) return;
+
+  try {
+    const res = await fetch(
+      `http://localhost:5000/api/projects/${projectId}`,
+      {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }
+    );
+
+    if (!res.ok) throw new Error("Delete failed");
+
+    loadProjects();
+
+  } catch (err) {
+    alert("Project delete nahi hua");
+  }
+}
+
+loadProjects();
+</script>
+
+</body>
+</html>

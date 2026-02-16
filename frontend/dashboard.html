@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <title>SkillLink Dashboard</title>
+  <meta charset="UTF-8" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Inter', sans-serif;
+      background: #f5f7fb;
+    }
+
+    .layout {
+      display: flex;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 230px;
+      height: 100vh;
+      background: #1f2937;
+      padding: 25px;
+      color: white;
+    }
+
+    .sidebar h2 {
+      margin-bottom: 30px;
+    }
+
+    .sidebar a {
+      display: block;
+      margin-bottom: 15px;
+      color: #cbd5e1;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .sidebar a:hover,
+    .sidebar .active {
+      color: white;
+    }
+
+    /* Content */
+    .content {
+      flex: 1;
+      padding: 40px;
+    }
+
+    .stats {
+      margin: 30px 0;
+    }
+
+    .stat-card {
+      width: 220px;
+      padding: 20px;
+      background: white;
+      border-radius: 15px;
+      text-align: center;
+      box-shadow: 0 10px 20px rgba(0,0,0,0.08);
+    }
+
+    /* Cards */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 25px;
+      margin-top: 40px;
+    }
+
+    .card {
+      padding: 25px;
+      border-radius: 18px;
+      color: white;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      transform: translateY(-6px);
+    }
+
+    .blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+    .green { background: linear-gradient(135deg, #10b981, #059669); }
+    .purple { background: linear-gradient(135deg, #8b5cf6, #6d28d9); }
+
+    .card h3 {
+      margin-bottom: 8px;
+    }
+
+    .orange {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
+.card.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+
+.dashboard-card {
+  background: #111827;
+  padding: 20px;
+  border-radius: 10px;
+  color: white;
+  width: 350px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+
+.dashboard-card h2 {
+  margin-bottom: 15px;
+  color: #22d3ee;
+}
+
+.dashboard-card p {
+  margin: 8px 0;
+}
+
+
+  </style>
+</head>
+
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h2>SkillLink</h2>
+    <a class="active">Dashboard</a>
+    <a href="profile.html">Update Profile</a>
+    <a href="project-submit.html">Submit Project</a>
+    <a href="my-projects.html">My Projects</a>
+    <a onclick="logout()">Logout</a>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="content">
+
+    <h1 id="welcomeText">Welcome 👋</h1>
+    <p id="profileStatus"></p>
+
+    <!-- Stats -->
+    <div class="stats">
+      <div class="stat-card">
+        <h2 id="projectCount">0</h2>
+        <p>Projects Submitted</p>
+      </div>
+    </div>
+
+    <!-- Cards -->
+    <div class="cards">
+
+      <div class="card blue" onclick="location.href='profile.html'">
+        <h3>👤 Update Profile</h3>
+        <p>Edit your personal & tech details</p>
+      </div>
+
+      <div class="card green" onclick="location.href='project-submit.html'">
+        <h3>🚀 Submit Project</h3>
+        <p>Add project for evaluation</p>
+      </div>
+
+      <div class="card purple" onclick="location.href='my-projects.html'">
+        <h3>📂 My Projects</h3>
+        <p>View submitted projects</p>
+      </div>
+
+      <div class="card orange" onclick="startAptitudeTest()">
+  <h3>🧠 Aptitude Test</h3>
+  <p>Test your technical aptitude</p>
+</div>
+
+<div class="card orange" id="codingCard" onclick="goToTechSelect()">
+  <h3>💻 Coding Round</h3>
+  <p id="codingStatus">🔒 Complete Aptitude to unlock</p>
+</div>
+
+<div class="dashboard-card">
+  <h2>My Skill Report</h2>
+
+  <p>Aptitude Score: <span id="aptitudeScore">-</span></p>
+  <p>Coding Score: <span id="codingScore">-</span></p>
+  <p>Project Score: <span id="projectScore">-</span></p>
+  <p><strong>Overall Percentage: <span id="overallScore">-</span></strong></p>
+  <p>Skill Level: <span id="skillLevel">-</span></p>
+</div>
+
+
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const token = localStorage.getItem("token");
+  if (!token) {
+    window.location.href = "login.html";
+  }
+
+  async function loadDashboard() {
+    try {
+      // 🔹 Profile API
+      const res = await fetch("http://localhost:5000/api/profile/me", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) throw new Error("Profile fetch failed");
+
+      const data = await res.json();
+      console.log("PROFILE DATA:", data);
+
+      // ✅ Name resolve (backend variations safe)
+      const name =
+        data.name ||
+        data.user?.name ||
+        (data.email ? data.email.split("@")[0] : null) ||
+        "User";
+
+      const profileCompleted =
+        data.profileCompleted ??
+        data.user?.profileCompleted ??
+        false;
+
+      // 🔹 Set UI
+      document.getElementById("welcomeText").innerText =
+        `Welcome ${name} 👋`;
+
+      document.getElementById("profileStatus").innerText =
+        profileCompleted
+          ? "✅ Profile Completed"
+          : "⚠ Complete Your Profile";
+
+      // 🔹 Projects count
+      const pRes = await fetch(
+        "http://localhost:5000/api/projects/user",
+        {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        }
+      );
+
+      if (!pRes.ok) throw new Error("Projects fetch failed");
+
+      const projects = await pRes.json();
+      document.getElementById("projectCount").innerText =
+        projects.length;
+
+      // 🔐 CHECK CODING ROUND UNLOCK
+      await checkCodingUnlock();
+
+    } catch (err) {
+      console.error("Dashboard error:", err);
+      document.getElementById("welcomeText").innerText =
+        "Welcome User 👋";
+    }
+  }
+
+  loadDashboard();
+
+  // ================= CODING UNLOCK CHECK =================
+  async function checkCodingUnlock() {
+    try {
+      const res = await fetch("http://localhost:5000/api/progress/me", {
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      });
+
+      if (!res.ok) return;
+
+      const progress = await res.json();
+
+      const codingCard = document.getElementById("codingCard");
+      const codingStatus = document.getElementById("codingStatus");
+
+      if (!codingCard || !codingStatus) return;
+
+      if (progress.codingUnlocked) {
+        codingCard.classList.remove("locked");
+        codingStatus.innerText = "🚀 Start Coding Round";
+        codingCard.onclick = startCodingRound;
+      } else {
+        codingCard.classList.add("locked");
+        codingStatus.innerText = "🔒 Complete Aptitude to unlock";
+        codingCard.onclick = () => {
+          alert("⚠ Please complete Aptitude Test first");
+        };
+      }
+
+    } catch (err) {
+      console.error("Progress check failed", err);
+    }
+  }
+
+
+ 
+function goToTechSelect() {
+  const token = localStorage.getItem("token");
+
+  if (!token) {
+    window.location.href = "login.html";
+    return;
+  }
+
+  window.location.href = "select-tech.html";
+}
+
+
+  // ================= APTITUDE START =================
+// Rename this function
+async function startAptitudeTest() {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch("http://localhost:5000/api/aptitude/start", {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    alert(data.message || "Failed to start test");
+    return;
+  }
+
+  localStorage.setItem("aptitudeAttemptId", data.attemptId);
+  localStorage.setItem("aptitudeQuestions", JSON.stringify(data.questions));
+
+  window.location.href = "aptitude-test.html";
+}
+
+
+
+  // ================= LOGOUT =================
+  function logout() {
+    localStorage.removeItem("token");
+    window.location.href = "login.html";
+  }
+
+
+  async function loadFinalScore() {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch("http://localhost:5000/api/final-score/my-score", {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+
+  const data = await res.json();
+
+  if (!res.ok) {
+    alert(data.message);
+    return;
+  }
+
+  document.getElementById("aptitudeScore").innerText = data.aptitudeScore;
+  document.getElementById("codingScore").innerText = data.codingScore;
+  document.getElementById("projectScore").innerText = data.projectScore;
+  document.getElementById("overallScore").innerText = data.overallPercentage + "%";
+  document.getElementById("skillLevel").innerText = data.skillLevel;
+}
+
+loadFinalScore();
+</script>
+
+
+
+</body>
+</html>

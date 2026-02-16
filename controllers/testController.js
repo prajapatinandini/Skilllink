@@ -1,5 +1,5 @@
 const AptitudeQuestion = require("../models/AptitudeQuestion");
-const TestAttempt = require("../models/TestAttempt");
+const TestAttempt = require("../models/aptitudeTestAttempt");
 
 exports.submitTest = async (req, res) => {
   try {

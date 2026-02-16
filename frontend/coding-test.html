@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Coding Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f7fb;
+      padding: 30px;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      background: white;
+      padding: 25px;
+      border-radius: 10px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    }
+
+    h2 { margin-bottom: 10px; }
+
+    .difficulty {
+      font-size: 14px;
+      color: #4f46e5;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+
+    textarea {
+      width: 100%;
+      height: 200px;
+      margin-top: 15px;
+      font-family: monospace;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+    }
+
+    .btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background: #4f46e5;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .btn:disabled {
+      background: gray;
+      cursor: not-allowed;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h2 id="title"></h2>
+  <div class="difficulty" id="difficulty"></div>
+  <p id="description"></p>
+
+  <textarea id="codeArea" placeholder="Write your solution here..."></textarea>
+
+  <button class="btn" id="actionBtn">Next</button>
+</div>
+
+<script>
+/* ================= AUTH & SESSION ================= */
+
+const token = localStorage.getItem("token");
+const attemptId = localStorage.getItem("codingAttemptId"); // ✅ FIXED
+
+let questions = [];
+try {
+  questions = JSON.parse(localStorage.getItem("codingQuestions")) || [];
+} catch (e) {
+  questions = [];
+}
+
+if (!token || !attemptId || !questions.length) {
+  alert("Session expired. Please start again.");
+  window.location.href = "dashboard.html";
+}
+
+/* ================= STATE ================= */
+
+let currentIndex = 0;
+let answers = [];
+let testSubmitted = false;
+
+const titleEl = document.getElementById("title");
+const diffEl = document.getElementById("difficulty");
+const descEl = document.getElementById("description");
+const codeArea = document.getElementById("codeArea");
+const btn = document.getElementById("actionBtn");
+
+/* ================= RENDER FUNCTION ================= */
+
+function renderQuestion() {
+  const q = questions[currentIndex];
+
+  titleEl.innerText = q.title || "Coding Question";
+  diffEl.innerText =
+    "Difficulty: " + (q.difficulty || "easy").toUpperCase();
+
+  descEl.innerText = q.description || q.question || "";
+
+  btn.innerText =
+    currentIndex === questions.length - 1 ? "Submit" : "Next";
+
+  const saved = answers.find(a => a.questionId === q._id);
+  codeArea.value = saved ? saved.answer : "";
+}
+
+/* ================= NEXT / SAVE LOGIC ================= */
+
+btn.addEventListener("click", () => {
+
+  const qId = questions[currentIndex]._id;
+
+  const existingIndex = answers.findIndex(
+    a => a.questionId === qId
+  );
+
+  if (existingIndex > -1) {
+    answers[existingIndex].answer = codeArea.value;
+  } else {
+    answers.push({
+      questionId: qId,
+      answer: codeArea.value
+    });
+  }
+
+  if (currentIndex < questions.length - 1) {
+    currentIndex++;
+    renderQuestion();
+  } else {
+    submitTest();
+  }
+});
+
+/* ================= SUBMIT ================= */
+
+async function submitTest() {
+  if (testSubmitted) return;
+  testSubmitted = true;
+  btn.disabled = true;
+
+  try {
+    const res = await fetch("http://localhost:5000/api/coding/submit", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ attemptId, answers })
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      alert(data.message || "Submission failed");
+      testSubmitted = false;
+      btn.disabled = false;
+      return;
+    }
+
+    alert("🎉 Your Coding Score: " + data.score);
+
+    localStorage.removeItem("codingQuestions");
+    localStorage.removeItem("codingAttemptId");
+
+    window.location.href = "dashboard.html";
+
+  } catch (err) {
+    alert("Server error during submission");
+    testSubmitted = false;
+    btn.disabled = false;
+  }
+}
+
+/* ================= INIT ================= */
+
+renderQuestion();
+</script>
+
+
+</body>
+</html>
